@@ -3,6 +3,8 @@ const router = express.Router();
 const workspaceService = require('../services/workspace.service');
 const ideAIService = require('../services/ide-ai.service');
 const memoryService = require('../services/memory.service');
+const terminalService = require('../services/terminal.service');
+const gitService = require('../services/git.service');
 
 /**
  * POST /ide/workspace/open
@@ -224,4 +226,224 @@ router.get('/history', async (req, res) => {
     }
 });
 
+// ============ TERMINAL ROUTES ============
+
+/**
+ * POST /ide/terminal/exec
+ * Execute a command in the terminal
+ */
+router.post('/terminal/exec', async (req, res) => {
+    try {
+        const { command } = req.body;
+        const workspace = workspaceService.getWorkspace();
+
+        if (!command) {
+            return res.status(400).json({ error: 'Command is required' });
+        }
+
+        const result = await terminalService.executeCommand(command, workspace);
+        res.json(result);
+    } catch (error) {
+        console.error('[IDE] Terminal error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/terminal/kill
+ * Kill running process
+ */
+router.post('/terminal/kill', (req, res) => {
+    const killed = terminalService.killProcess();
+    res.json({ killed });
+});
+
+// ============ GIT ROUTES ============
+
+/**
+ * GET /ide/git/status
+ * Get git status
+ */
+router.get('/git/status', async (req, res) => {
+    try {
+        const workspace = workspaceService.getWorkspace();
+        const isRepo = await gitService.isGitRepo(workspace);
+
+        if (!isRepo) {
+            return res.json({ isRepo: false, files: [] });
+        }
+
+        const files = await gitService.status(workspace);
+        const branch = await gitService.currentBranch(workspace);
+        res.json({ isRepo: true, branch, files });
+    } catch (error) {
+        console.error('[IDE] Git status error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/git/init
+ * Initialize git repo
+ */
+router.post('/git/init', async (req, res) => {
+    try {
+        const workspace = workspaceService.getWorkspace();
+        await gitService.init(workspace);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[IDE] Git init error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/git/add
+ * Stage files
+ */
+router.post('/git/add', async (req, res) => {
+    try {
+        const { files = '.' } = req.body;
+        const workspace = workspaceService.getWorkspace();
+        await gitService.add(workspace, files);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[IDE] Git add error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/git/commit
+ * Commit changes
+ */
+router.post('/git/commit', async (req, res) => {
+    try {
+        const { message } = req.body;
+        const workspace = workspaceService.getWorkspace();
+
+        if (!message) {
+            return res.status(400).json({ error: 'Commit message is required' });
+        }
+
+        await gitService.commit(workspace, message);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[IDE] Git commit error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /ide/git/diff
+ * Get diff
+ */
+router.get('/git/diff', async (req, res) => {
+    try {
+        const { file } = req.query;
+        const workspace = workspaceService.getWorkspace();
+        const diff = await gitService.diff(workspace, file);
+        res.json({ diff });
+    } catch (error) {
+        console.error('[IDE] Git diff error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /ide/git/log
+ * Get commit log
+ */
+router.get('/git/log', async (req, res) => {
+    try {
+        const workspace = workspaceService.getWorkspace();
+        const log = await gitService.log(workspace, 20);
+        res.json({ log });
+    } catch (error) {
+        console.error('[IDE] Git log error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/git/push
+ * Push to remote
+ */
+router.post('/git/push', async (req, res) => {
+    try {
+        const workspace = workspaceService.getWorkspace();
+        await gitService.push(workspace);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[IDE] Git push error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ ENHANCED AI ROUTES ============
+
+/**
+ * POST /ide/suggest
+ * Get inline code suggestions
+ */
+router.post('/suggest', async (req, res) => {
+    try {
+        const { prefix, suffix, file } = req.body;
+        const workspace = workspaceService.getWorkspace();
+        const suggestion = await ideAIService.getSuggestion(prefix, suffix, file, workspace);
+        res.json({ suggestion });
+    } catch (error) {
+        console.error('[IDE] Suggest error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/explain
+ * Explain code
+ */
+router.post('/explain', async (req, res) => {
+    try {
+        const { code } = req.body;
+        const workspace = workspaceService.getWorkspace();
+        const explanation = await ideAIService.explainCode(code, workspace);
+        res.json({ explanation });
+    } catch (error) {
+        console.error('[IDE] Explain error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/optimize
+ * Optimize code
+ */
+router.post('/optimize', async (req, res) => {
+    try {
+        const { code, file } = req.body;
+        const workspace = workspaceService.getWorkspace();
+        const result = await ideAIService.optimizeCode(code, file, workspace);
+        res.json(result);
+    } catch (error) {
+        console.error('[IDE] Optimize error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/folder
+ * Create a new folder
+ */
+router.post('/folder', async (req, res) => {
+    try {
+        const { path } = req.body;
+        await workspaceService.createItem(path, 'directory');
+        res.json({ success: true, path });
+    } catch (error) {
+        console.error('[IDE] Folder create error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
+

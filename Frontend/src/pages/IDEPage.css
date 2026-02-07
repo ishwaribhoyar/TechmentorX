@@ -1,78 +1,189 @@
-.ide-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr 380px;
+.ide-container {
     height: 100vh;
+    display: flex;
+    flex-direction: column;
     background: #11111b;
 }
 
-.ide-sidebar {
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #313244;
-    overflow: hidden;
-}
-
-.workspace-header {
+/* Toolbar */
+.ide-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
     background: #181825;
     border-bottom: 1px solid #313244;
 }
 
-.workspace-name {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #cdd6f4;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
-.close-btn {
-    background: none;
-    border: none;
-    color: #6c7086;
+.workspace-name {
+    color: #cdd6f4;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.toolbar-actions button {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #313244;
+    border-radius: 6px;
+    color: #a6adc8;
+    font-size: 0.85rem;
     cursor: pointer;
-    font-size: 1rem;
-    padding: 0.25rem;
-    border-radius: 4px;
     transition: all 0.2s;
 }
 
-.close-btn:hover {
+.toolbar-actions button:hover {
     background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.toolbar-actions button.active {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: #fff;
+}
+
+.toolbar-actions .close-workspace {
+    background: transparent;
+    border-color: #f38ba8;
     color: #f38ba8;
 }
 
-.ide-editor {
+.toolbar-actions .close-workspace:hover {
+    background: #f38ba8;
+    color: #11111b;
+}
+
+/* Main layout */
+.ide-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 240px 1fr 360px;
     overflow: hidden;
 }
 
-.ide-chat {
+.ide-sidebar {
+    border-right: 1px solid #313244;
+    overflow-y: auto;
+}
+
+.ide-center {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ide-editor {
+    flex: 1;
+    overflow: hidden;
+}
+
+.ide-right {
     border-left: 1px solid #313244;
     overflow: hidden;
 }
 
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #1e1e2e;
+    padding: 1.5rem;
+    border-radius: 12px;
+    width: 400px;
+    max-width: 90%;
+}
+
+.modal-content h3 {
+    margin: 0 0 1rem 0;
+    color: #cdd6f4;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 0.75rem;
+    background: #313244;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    color: #cdd6f4;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.modal-content input:focus {
+    outline: none;
+    border-color: #7c3aed;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.modal-actions button {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+}
+
+.modal-actions button:first-child {
+    background: #7c3aed;
+    color: #fff;
+}
+
+.modal-actions button:last-child {
+    background: #313244;
+    color: #cdd6f4;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
-    .ide-layout {
-        grid-template-columns: 220px 1fr 320px;
+    .ide-main {
+        grid-template-columns: 200px 1fr 300px;
     }
 }
 
 @media (max-width: 900px) {
-    .ide-layout {
+    .ide-main {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto;
     }
 
     .ide-sidebar {
-        max-height: 200px;
+        max-height: 150px;
+        border-right: none;
+        border-bottom: 1px solid #313244;
     }
 
-    .ide-chat {
+    .ide-right {
         max-height: 300px;
         border-left: none;
         border-top: 1px solid #313244;

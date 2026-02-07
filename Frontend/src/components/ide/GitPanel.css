@@ -1,0 +1,216 @@
+.git-panel {
+    background: #1e1e2e;
+    border-left: 1px solid #313244;
+    padding: 1rem;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.git-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.git-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #cdd6f4;
+    font-weight: 600;
+}
+
+.git-header button {
+    background: none;
+    border: none;
+    color: #6c7086;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.git-header button:hover {
+    color: #cdd6f4;
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.git-message {
+    background: rgba(124, 58, 237, 0.2);
+    color: #cdd6f4;
+    padding: 0.5rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.git-empty {
+    text-align: center;
+    color: #6c7086;
+    padding: 2rem 1rem;
+}
+
+.git-empty button {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: #7c3aed;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.git-empty button:hover {
+    background: #6d28d9;
+}
+
+.git-changes {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.changes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    color: #a6adc8;
+    font-size: 0.85rem;
+}
+
+.changes-header button {
+    background: none;
+    border: 1px solid #45475a;
+    color: #cdd6f4;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.changes-header button:hover {
+    border-color: #7c3aed;
+}
+
+.no-changes {
+    color: #6c7086;
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.file-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    font-size: 0.85rem;
+    color: #cdd6f4;
+}
+
+.file-list .modified {
+    color: #f0883e;
+}
+
+.file-list .added {
+    color: #3fb950;
+}
+
+.file-list .deleted {
+    color: #f85149;
+}
+
+.file-list .untracked {
+    color: #8b949e;
+}
+
+.file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-commit {
+    border-top: 1px solid #313244;
+    padding-top: 1rem;
+    margin-top: auto;
+}
+
+.git-commit input {
+    width: 100%;
+    padding: 0.5rem;
+    background: #313244;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    color: #cdd6f4;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.git-commit input:focus {
+    outline: none;
+    border-color: #7c3aed;
+}
+
+.commit-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.commit-actions button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: none;
+}
+
+.commit-actions button:first-child {
+    background: #7c3aed;
+    color: #fff;
+}
+
+.commit-actions button:first-child:hover {
+    background: #6d28d9;
+}
+
+.commit-actions button:last-child {
+    background: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+}
+
+.commit-actions button:last-child:hover {
+    border-color: #7c3aed;
+}
+
+.commit-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

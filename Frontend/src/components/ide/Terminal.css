@@ -1,0 +1,116 @@
+.terminal-panel {
+    background: #0d1117;
+    border-top: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    height: 250px;
+    transition: height 0.2s;
+}
+
+.terminal-panel.maximized {
+    height: 50vh;
+}
+
+.terminal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+}
+
+.terminal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #58a6ff;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.terminal-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.terminal-actions button {
+    background: none;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+.terminal-actions button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.terminal-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85rem;
+}
+
+.terminal-output .line {
+    margin: 0;
+    padding: 0.15rem 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.terminal-output .line.input {
+    color: #58a6ff;
+}
+
+.terminal-output .line.output {
+    color: #c9d1d9;
+}
+
+.terminal-output .line.error {
+    color: #f85149;
+}
+
+.terminal-output .line.system {
+    color: #8b949e;
+    font-style: italic;
+}
+
+.terminal-output .line.loading {
+    color: #f0883e;
+}
+
+.terminal-input {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid #30363d;
+    background: #0d1117;
+}
+
+.terminal-input .prompt {
+    color: #58a6ff;
+    margin-right: 0.5rem;
+    font-family: monospace;
+}
+
+.terminal-input input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #c9d1d9;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.terminal-input input::placeholder {
+    color: #484f58;
+}

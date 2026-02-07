@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { FiTerminal, FiGitBranch, FiPlus, FiFile } from 'react-icons/fi'
 import WorkspaceSelector from '../components/ide/WorkspaceSelector'
 import FileTree from '../components/ide/FileTree'
 import CodeEditor from '../components/ide/CodeEditor'
 import AIChat from '../components/ide/AIChat'
+import Terminal from '../components/ide/Terminal'
+import GitPanel from '../components/ide/GitPanel'
 import './IDEPage.css'
 
 const API_BASE = 'http://localhost:3000/ide'
@@ -18,6 +21,12 @@ function IDEPage() {
     const [messages, setMessages] = useState([])
     const [pendingFiles, setPendingFiles] = useState([])
     const [isAILoading, setIsAILoading] = useState(false)
+
+    // Panel visibility
+    const [showTerminal, setShowTerminal] = useState(false)
+    const [showGitPanel, setShowGitPanel] = useState(false)
+    const [showNewFileModal, setShowNewFileModal] = useState(false)
+    const [newFileName, setNewFileName] = useState('')
 
     // Open workspace
     const handleWorkspaceSelected = async (path) => {
@@ -67,6 +76,20 @@ function IDEPage() {
         }
     }
 
+    // Create new file
+    const handleCreateFile = async () => {
+        if (!newFileName.trim()) return
+        try {
+            await axios.post(`${API_BASE}/file`, { path: newFileName, content: '' })
+            setShowNewFileModal(false)
+            setNewFileName('')
+            loadFiles()
+            handleFileSelect(newFileName)
+        } catch (error) {
+            console.error('Failed to create file:', error)
+        }
+    }
+
     // Send message to AI
     const handleSendMessage = async (message) => {
         setMessages(prev => [...prev, { role: 'user', content: message }])
@@ -86,10 +109,16 @@ function IDEPage() {
                     error: message,
                     file: currentFile
                 })
+            } else if (message.toLowerCase().includes('explain')) {
+                const code = fileContent || message
+                const explainRes = await axios.post(`${API_BASE}/explain`, { code })
+                response = { data: { response: explainRes.data.explanation } }
+            } else if (message.toLowerCase().includes('optimize')) {
+                const code = fileContent || message
+                response = await axios.post(`${API_BASE}/optimize`, { code, file: currentFile })
             } else if (message.toLowerCase().includes('edit') ||
                 message.toLowerCase().includes('modify') ||
-                message.toLowerCase().includes('refactor') ||
-                message.toLowerCase().includes('optimize')) {
+                message.toLowerCase().includes('refactor')) {
                 response = await axios.post(`${API_BASE}/edit`, {
                     instruction: message,
                     file: currentFile
@@ -155,39 +184,82 @@ function IDEPage() {
     }
 
     return (
-        <div className="ide-layout">
-            <div className="ide-sidebar">
-                <div className="workspace-header">
-                    <span className="workspace-name" title={workspace}>
-                        📁 {workspace.split(/[\\/]/).pop()}
-                    </span>
-                    <button className="close-btn" onClick={handleCloseWorkspace}>✕</button>
+        <div className="ide-container">
+            <div className="ide-toolbar">
+                <div className="toolbar-left">
+                    <span className="workspace-name">📁 {workspace.split(/[\\/]/).pop()}</span>
                 </div>
-                <FileTree
-                    files={files}
-                    onFileSelect={handleFileSelect}
-                    isLoading={isLoadingFiles}
-                />
+                <div className="toolbar-actions">
+                    <button onClick={() => setShowNewFileModal(true)} title="New File">
+                        <FiPlus /> <FiFile />
+                    </button>
+                    <button onClick={() => setShowTerminal(!showTerminal)} title="Terminal" className={showTerminal ? 'active' : ''}>
+                        <FiTerminal />
+                    </button>
+                    <button onClick={() => setShowGitPanel(!showGitPanel)} title="Git" className={showGitPanel ? 'active' : ''}>
+                        <FiGitBranch />
+                    </button>
+                    <button onClick={handleCloseWorkspace} className="close-workspace">✕ Close</button>
+                </div>
             </div>
 
-            <div className="ide-editor">
-                <CodeEditor
-                    filePath={currentFile}
-                    content={fileContent}
-                    onChange={handleContentChange}
-                />
+            <div className="ide-main">
+                <div className="ide-sidebar">
+                    <FileTree
+                        files={files}
+                        onFileSelect={handleFileSelect}
+                        isLoading={isLoadingFiles}
+                    />
+                </div>
+
+                <div className="ide-center">
+                    <div className="ide-editor">
+                        <CodeEditor
+                            filePath={currentFile}
+                            content={fileContent}
+                            onChange={handleContentChange}
+                        />
+                    </div>
+                    {showTerminal && (
+                        <Terminal onClose={() => setShowTerminal(false)} />
+                    )}
+                </div>
+
+                <div className="ide-right">
+                    {showGitPanel ? (
+                        <GitPanel onClose={() => setShowGitPanel(false)} />
+                    ) : (
+                        <AIChat
+                            messages={messages}
+                            onSendMessage={handleSendMessage}
+                            pendingFiles={pendingFiles}
+                            onApplyFiles={handleApplyFiles}
+                            onRejectFiles={handleRejectFiles}
+                            isLoading={isAILoading}
+                        />
+                    )}
+                </div>
             </div>
 
-            <div className="ide-chat">
-                <AIChat
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
-                    pendingFiles={pendingFiles}
-                    onApplyFiles={handleApplyFiles}
-                    onRejectFiles={handleRejectFiles}
-                    isLoading={isAILoading}
-                />
-            </div>
+            {/* New File Modal */}
+            {showNewFileModal && (
+                <div className="modal-overlay" onClick={() => setShowNewFileModal(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <h3>Create New File</h3>
+                        <input
+                            type="text"
+                            value={newFileName}
+                            onChange={e => setNewFileName(e.target.value)}
+                            placeholder="Enter file path (e.g., src/index.js)"
+                            autoFocus
+                        />
+                        <div className="modal-actions">
+                            <button onClick={handleCreateFile}>Create</button>
+                            <button onClick={() => setShowNewFileModal(false)}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
