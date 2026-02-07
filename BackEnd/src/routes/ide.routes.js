@@ -118,13 +118,14 @@ router.delete('/file', async (req, res) => {
  */
 router.post('/chat', async (req, res) => {
     try {
-        const { message, includeCodebase = true } = req.body;
+        const { message } = req.body;
+        const workspace = workspaceService.getWorkspace();
 
         if (!message) {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        const result = await ideAIService.chat(message, includeCodebase);
+        const result = await ideAIService.chat(message, workspace);
         res.json({ response: result });
     } catch (error) {
         console.error('[IDE] Chat error:', error);
@@ -139,12 +140,13 @@ router.post('/chat', async (req, res) => {
 router.post('/generate', async (req, res) => {
     try {
         const { description } = req.body;
+        const workspace = workspaceService.getWorkspace();
 
         if (!description) {
             return res.status(400).json({ error: 'Description is required' });
         }
 
-        const result = await ideAIService.generateProject(description);
+        const result = await ideAIService.generateProject(description, workspace);
         res.json(result);
     } catch (error) {
         console.error('[IDE] Generate error:', error);
@@ -159,12 +161,13 @@ router.post('/generate', async (req, res) => {
 router.post('/debug', async (req, res) => {
     try {
         const { error: errorMessage, file } = req.body;
+        const workspace = workspaceService.getWorkspace();
 
         if (!errorMessage) {
             return res.status(400).json({ error: 'Error message is required' });
         }
 
-        const result = await ideAIService.debug(errorMessage, file);
+        const result = await ideAIService.debugError(errorMessage, file, workspace);
         res.json(result);
     } catch (error) {
         console.error('[IDE] Debug error:', error);
@@ -179,12 +182,13 @@ router.post('/debug', async (req, res) => {
 router.post('/edit', async (req, res) => {
     try {
         const { instruction, file } = req.body;
+        const workspace = workspaceService.getWorkspace();
 
         if (!instruction) {
             return res.status(400).json({ error: 'Instruction is required' });
         }
 
-        const result = await ideAIService.editCode(instruction, file);
+        const result = await ideAIService.editCode(instruction, file, workspace);
         res.json(result);
     } catch (error) {
         console.error('[IDE] Edit error:', error);
@@ -199,12 +203,13 @@ router.post('/edit', async (req, res) => {
 router.post('/apply', async (req, res) => {
     try {
         const { files } = req.body;
+        const workspace = workspaceService.getWorkspace();
 
         if (!files || !Array.isArray(files)) {
             return res.status(400).json({ error: 'Files array is required' });
         }
 
-        const results = await ideAIService.applyChanges(files);
+        const results = await ideAIService.applyFiles(files, workspace);
         res.json({ results });
     } catch (error) {
         console.error('[IDE] Apply error:', error);
@@ -218,7 +223,8 @@ router.post('/apply', async (req, res) => {
  */
 router.get('/history', async (req, res) => {
     try {
-        const history = await memoryService.getHistory();
+        const workspace = workspaceService.getWorkspace();
+        const history = await memoryService.getHistory(workspace);
         res.json({ history: history || 'No history yet' });
     } catch (error) {
         console.error('[IDE] History error:', error);

@@ -5,11 +5,32 @@ const path = require('path');
 let currentWorkspace = null;
 
 /**
+ * Validate that a path is within the workspace (security)
+ */
+function validatePath(filePath) {
+    if (!currentWorkspace) {
+        throw new Error('No workspace selected');
+    }
+
+    // Normalize the path
+    const fullPath = path.resolve(currentWorkspace, filePath);
+    const normalizedWorkspace = path.resolve(currentWorkspace);
+
+    // Check if the resolved path starts with the workspace
+    if (!fullPath.startsWith(normalizedWorkspace)) {
+        throw new Error('Access denied: Path traversal attempt detected');
+    }
+
+    return fullPath;
+}
+
+/**
  * Set the current workspace directory
  */
 function setWorkspace(workspacePath) {
-    currentWorkspace = workspacePath;
-    console.log(`[Workspace] Set to: ${workspacePath}`);
+    // Validate the workspace path exists and is a directory
+    currentWorkspace = path.resolve(workspacePath);
+    console.log(`[Workspace] Set to: ${currentWorkspace}`);
     return currentWorkspace;
 }
 
@@ -91,27 +112,19 @@ function shouldIgnore(name) {
 }
 
 /**
- * Read file content from workspace
+ * Read file content from workspace (with path validation)
  */
 async function readFile(filePath) {
-    if (!currentWorkspace) {
-        throw new Error('No workspace selected');
-    }
-
-    const fullPath = path.join(currentWorkspace, filePath);
+    const fullPath = validatePath(filePath);
     const content = await fs.readFile(fullPath, 'utf-8');
     return content;
 }
 
 /**
- * Write content to a file in workspace
+ * Write content to a file in workspace (with path validation)
  */
 async function writeFile(filePath, content) {
-    if (!currentWorkspace) {
-        throw new Error('No workspace selected');
-    }
-
-    const fullPath = path.join(currentWorkspace, filePath);
+    const fullPath = validatePath(filePath);
     const dir = path.dirname(fullPath);
 
     // Create directory if it doesn't exist
@@ -123,16 +136,12 @@ async function writeFile(filePath, content) {
 }
 
 /**
- * Create a new file or directory
+ * Create a new file or directory (with path validation)
  */
-async function createItem(itemPath, isDirectory = false, content = '') {
-    if (!currentWorkspace) {
-        throw new Error('No workspace selected');
-    }
+async function createItem(itemPath, type = 'file', content = '') {
+    const fullPath = validatePath(itemPath);
 
-    const fullPath = path.join(currentWorkspace, itemPath);
-
-    if (isDirectory) {
+    if (type === 'directory') {
         await fs.mkdir(fullPath, { recursive: true });
     } else {
         const dir = path.dirname(fullPath);
@@ -140,18 +149,15 @@ async function createItem(itemPath, isDirectory = false, content = '') {
         await fs.writeFile(fullPath, content, 'utf-8');
     }
 
+    console.log(`[Workspace] Created ${type}: ${itemPath}`);
     return { success: true, path: itemPath };
 }
 
 /**
- * Delete a file from workspace
+ * Delete a file from workspace (with path validation)
  */
 async function deleteFile(filePath) {
-    if (!currentWorkspace) {
-        throw new Error('No workspace selected');
-    }
-
-    const fullPath = path.join(currentWorkspace, filePath);
+    const fullPath = validatePath(filePath);
     await fs.unlink(fullPath);
 
     console.log(`[Workspace] File deleted: ${filePath}`);
@@ -159,7 +165,56 @@ async function deleteFile(filePath) {
 }
 
 /**
- * Get all code files for AI context (flattened with content)
+ * Build codebase context for AI (formatted string)
+ */
+async function buildCodebaseContext(workspacePath) {
+    if (!workspacePath && !currentWorkspace) {
+        return 'No workspace loaded.';
+    }
+
+    const workspace = workspacePath || currentWorkspace;
+    const codeExtensions = ['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'html', 'css', 'json', 'md', 'yml', 'yaml'];
+
+    try {
+        const files = await getAllFiles(workspace);
+        const codeFiles = [];
+
+        function flattenFiles(items, prefix = '') {
+            for (const item of items) {
+                if (item.type === 'directory') {
+                    flattenFiles(item.children, item.path);
+                } else if (codeExtensions.includes(item.extension) && item.size < 30000) {
+                    codeFiles.push(item);
+                }
+            }
+        }
+
+        flattenFiles(files);
+
+        // Build context string
+        let context = `## Project Structure\n`;
+        context += `Total files: ${codeFiles.length}\n\n`;
+
+        // Read key files for context
+        const keyFiles = codeFiles.slice(0, 20);
+        for (const file of keyFiles) {
+            try {
+                const fullPath = path.join(workspace, file.path);
+                const content = await fs.readFile(fullPath, 'utf-8');
+                context += `### ${file.path}\n\`\`\`${file.extension}\n${content.substring(0, 3000)}\n\`\`\`\n\n`;
+            } catch (e) {
+                // Skip unreadable files
+            }
+        }
+
+        return context;
+    } catch (error) {
+        return `Error reading workspace: ${error.message}`;
+    }
+}
+
+/**
+ * Get all code files for AI context (array format)
  */
 async function getCodebaseContext(maxFiles = 50) {
     if (!currentWorkspace) {
@@ -208,5 +263,6 @@ module.exports = {
     writeFile,
     createItem,
     deleteFile,
+    buildCodebaseContext,
     getCodebaseContext
 };

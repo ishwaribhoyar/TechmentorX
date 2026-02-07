@@ -1,38 +1,23 @@
 const fs = require('fs').promises;
 const path = require('path');
-const workspaceService = require('./workspace.service');
 
 /**
  * Append entry to history.md in the workspace
+ * @param {string} workspacePath - Path to the workspace
+ * @param {string} action - Type of action (chat, generate, debug, edit, apply, optimize)
+ * @param {string} request - User's request/input
+ * @param {string} summary - Summary of what was done
  */
-async function logAction(action, details = {}) {
-    const workspace = workspaceService.getWorkspace();
-    if (!workspace) return;
+async function logAction(workspacePath, action, request, summary) {
+    if (!workspacePath) return;
 
-    const historyPath = path.join(workspace, 'history.md');
+    const historyPath = path.join(workspacePath, 'history.md');
     const timestamp = new Date().toISOString();
 
     let entry = `\n## ${timestamp}\n`;
     entry += `**Action**: ${action}\n`;
-
-    if (details.request) {
-        entry += `**Request**: ${details.request}\n`;
-    }
-    if (details.filesModified && details.filesModified.length > 0) {
-        entry += `**Files Modified**:\n`;
-        details.filesModified.forEach(f => {
-            entry += `- ${f}\n`;
-        });
-    }
-    if (details.filesCreated && details.filesCreated.length > 0) {
-        entry += `**Files Created**:\n`;
-        details.filesCreated.forEach(f => {
-            entry += `- ${f}\n`;
-        });
-    }
-    if (details.summary) {
-        entry += `**Summary**: ${details.summary}\n`;
-    }
+    entry += `**Request**: ${request.substring(0, 200)}${request.length > 200 ? '...' : ''}\n`;
+    entry += `**Result**: ${summary}\n`;
     entry += `---\n`;
 
     try {
@@ -54,12 +39,12 @@ async function logAction(action, details = {}) {
 
 /**
  * Get history content
+ * @param {string} workspacePath - Optional workspace path
  */
-async function getHistory() {
-    const workspace = workspaceService.getWorkspace();
-    if (!workspace) return null;
+async function getHistory(workspacePath) {
+    if (!workspacePath) return null;
 
-    const historyPath = path.join(workspace, 'history.md');
+    const historyPath = path.join(workspacePath, 'history.md');
 
     try {
         return await fs.readFile(historyPath, 'utf-8');
