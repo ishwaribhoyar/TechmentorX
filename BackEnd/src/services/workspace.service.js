@@ -12,8 +12,17 @@ function validatePath(filePath) {
         throw new Error('No workspace selected');
     }
 
+    // Clean the file path - remove leading slashes and normalize
+    let cleanPath = filePath;
+
+    // Remove leading slashes (/, \, or Windows drive letters when they shouldn't be there)
+    cleanPath = cleanPath.replace(/^[\/\\]+/, '');
+
+    // Also remove common prefixes like /memory/ that AI might generate
+    cleanPath = cleanPath.replace(/^memory[\/\\]/, '');
+
     // Normalize the path
-    const fullPath = path.resolve(currentWorkspace, filePath);
+    const fullPath = path.resolve(currentWorkspace, cleanPath);
     const normalizedWorkspace = path.resolve(currentWorkspace);
 
     // Check if the resolved path starts with the workspace
@@ -124,14 +133,17 @@ async function readFile(filePath) {
  * Write content to a file in workspace (with path validation)
  */
 async function writeFile(filePath, content) {
+    console.log(`[Workspace] writeFile called with: ${filePath}`);
     const fullPath = validatePath(filePath);
+    console.log(`[Workspace] Resolved full path: ${fullPath}`);
+
     const dir = path.dirname(fullPath);
 
     // Create directory if it doesn't exist
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(fullPath, content, 'utf-8');
 
-    console.log(`[Workspace] File written: ${filePath}`);
+    console.log(`[Workspace] ✓ File successfully written: ${fullPath}`);
     return { success: true, path: filePath };
 }
 

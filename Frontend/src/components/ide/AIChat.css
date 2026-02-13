@@ -7,19 +7,24 @@
 }
 
 .chat-header {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid #313244;
+    background: linear-gradient(135deg, #1e1e2e, #252536);
 }
 
 .chat-header h3 {
     margin: 0;
     font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .chat-messages {
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
+    scroll-behavior: smooth;
 }
 
 .chat-welcome {
@@ -40,45 +45,205 @@
 
 .message {
     margin: 0.75rem 0;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message.user .message-content {
-    background: #7c3aed;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
     color: #fff;
     padding: 0.75rem 1rem;
     border-radius: 16px 16px 4px 16px;
     margin-left: 2rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
 .message.assistant .message-content {
-    background: #313244;
-    padding: 0.75rem 1rem;
-    border-radius: 16px 16px 16px 4px;
-    margin-right: 1rem;
+    background: #252536;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-right: 0.5rem;
+    border: 1px solid #313244;
+    font-size: 0.88rem;
+    line-height: 1.6;
 }
 
+/* ===== MARKDOWN STYLING FOR AI RESPONSES ===== */
+
+/* Headings */
+.message.assistant .message-content h1 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #cba6f7;
+    margin: 1.25rem 0 0.75rem 0;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #313244;
+}
+
+.message.assistant .message-content h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #89b4fa;
+    margin: 1rem 0 0.5rem 0;
+}
+
+.message.assistant .message-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #94e2d5;
+    margin: 0.75rem 0 0.4rem 0;
+}
+
+.message.assistant .message-content h4,
+.message.assistant .message-content h5,
+.message.assistant .message-content h6 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #a6e3a1;
+    margin: 0.6rem 0 0.35rem 0;
+}
+
+/* Paragraphs */
+.message.assistant .message-content p {
+    margin: 0.5rem 0;
+    color: #cdd6f4;
+}
+
+/* Strong/Bold */
+.message.assistant .message-content strong {
+    color: #f9e2af;
+    font-weight: 600;
+}
+
+/* Emphasis/Italic */
+.message.assistant .message-content em {
+    color: #f5c2e7;
+    font-style: italic;
+}
+
+/* Lists */
+.message.assistant .message-content ul,
+.message.assistant .message-content ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.message.assistant .message-content li {
+    margin: 0.25rem 0;
+    color: #bac2de;
+}
+
+.message.assistant .message-content li::marker {
+    color: #7c3aed;
+}
+
+/* Inline Code */
+.message.assistant .message-content code:not(pre code) {
+    background: #313244;
+    color: #f38ba8;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem;
+}
+
+/* Code Blocks */
 .message.assistant .message-content pre {
-    background: #1e1e1e;
-    padding: 0.75rem;
+    background: #11111b;
+    padding: 1rem;
     border-radius: 8px;
     overflow-x: auto;
+    margin: 0.75rem 0;
+    border: 1px solid #313244;
+    position: relative;
 }
 
-.message.assistant .message-content code {
-    font-family: 'Fira Code', monospace;
+.message.assistant .message-content pre code {
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #cdd6f4;
+    background: transparent;
+    padding: 0;
+}
+
+/* Blockquotes */
+.message.assistant .message-content blockquote {
+    border-left: 3px solid #7c3aed;
+    margin: 0.75rem 0;
+    padding: 0.5rem 0 0.5rem 1rem;
+    background: rgba(124, 58, 237, 0.1);
+    border-radius: 0 6px 6px 0;
+    color: #a6adc8;
+}
+
+/* Horizontal Rule */
+.message.assistant .message-content hr {
+    border: none;
+    height: 1px;
+    background: #313244;
+    margin: 1rem 0;
+}
+
+/* Links */
+.message.assistant .message-content a {
+    color: #89b4fa;
+    text-decoration: none;
+}
+
+.message.assistant .message-content a:hover {
+    text-decoration: underline;
+}
+
+/* Tables */
+.message.assistant .message-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.75rem 0;
     font-size: 0.85rem;
 }
+
+.message.assistant .message-content th,
+.message.assistant .message-content td {
+    border: 1px solid #313244;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+}
+
+.message.assistant .message-content th {
+    background: #313244;
+    color: #cba6f7;
+    font-weight: 600;
+}
+
+.message.assistant .message-content tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* ===== END MARKDOWN STYLING ===== */
 
 .typing-indicator {
     display: flex;
     gap: 4px;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
 }
 
 .typing-indicator span {
     width: 8px;
     height: 8px;
-    background: #6c7086;
+    background: #7c3aed;
     border-radius: 50%;
     animation: bounce 1.4s infinite ease-in-out;
 }
@@ -105,7 +270,7 @@
 }
 
 .pending-changes {
-    background: rgba(124, 58, 237, 0.1);
+    background: rgba(124, 58, 237, 0.08);
     border: 1px solid #7c3aed;
     border-radius: 8px;
     padding: 1rem;
@@ -115,6 +280,7 @@
 .pending-changes h4 {
     margin: 0 0 0.5rem 0;
     color: #7c3aed;
+    font-size: 0.9rem;
 }
 
 .pending-changes ul {
@@ -125,7 +291,7 @@
 
 .pending-changes li {
     font-family: monospace;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     padding: 0.25rem 0;
     color: #cdd6f4;
 }
@@ -133,36 +299,41 @@
 .change-actions {
     display: flex;
     gap: 0.5rem;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
 }
 
 .btn-apply {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.85rem;
     background: #7c3aed;
     border: none;
     border-radius: 6px;
     color: #fff;
     cursor: pointer;
     font-weight: 500;
+    font-size: 0.85rem;
+    transition: all 0.15s;
 }
 
 .btn-apply:hover {
     background: #6d28d9;
+    transform: translateY(-1px);
 }
 
 .btn-reject {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.85rem;
     background: transparent;
     border: 1px solid #45475a;
     border-radius: 6px;
     color: #cdd6f4;
     cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
 }
 
 .btn-reject:hover {
@@ -175,20 +346,21 @@
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     border-top: 1px solid #313244;
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .quick-actions button {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.4rem 0.75rem;
+    padding: 0.35rem 0.7rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid #313244;
     border-radius: 16px;
     color: #a6adc8;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 
 .quick-actions button:hover:not(:disabled) {
@@ -205,25 +377,28 @@
 .chat-input {
     display: flex;
     gap: 0.5rem;
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     border-top: 1px solid #313244;
+    background: #181825;
 }
 
 .chat-input textarea {
     flex: 1;
-    padding: 0.75rem;
+    padding: 0.65rem 0.85rem;
     background: #313244;
     border: 1px solid #45475a;
     border-radius: 8px;
     color: #cdd6f4;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     resize: none;
     font-family: inherit;
+    line-height: 1.4;
 }
 
 .chat-input textarea:focus {
     outline: none;
     border-color: #7c3aed;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
 }
 
 .chat-input textarea::placeholder {
@@ -231,8 +406,8 @@
 }
 
 .chat-input button {
-    padding: 0.75rem 1rem;
-    background: #7c3aed;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
     border: none;
     border-radius: 8px;
     color: #fff;
@@ -240,14 +415,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    transition: all 0.15s;
 }
 
 .chat-input button:hover:not(:disabled) {
-    background: #6d28d9;
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    transform: translateY(-1px);
 }
 
 .chat-input button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Scrollbar styling */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: #45475a;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #585b70;
 }

@@ -7,11 +7,97 @@
 
 .editor-header {
     height: 40px;
-    padding: 0 1rem;
+    padding: 0;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     background: #252526;
     border-bottom: 1px solid #333;
+}
+
+/* File Tabs */
+.file-tabs {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    overflow-x: auto;
+    flex: 1;
+}
+
+.file-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+    height: 100%;
+    background: transparent;
+    border-right: 1px solid #333;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.file-tab:hover {
+    background: #2d2d2d;
+    color: #ccc;
+}
+
+.file-tab.active {
+    background: #1e1e1e;
+    color: #fff;
+    border-bottom: 2px solid #7c3aed;
+}
+
+.tab-name {
+    font-size: 0.85rem;
+    font-family: monospace;
+}
+
+.tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 0;
+    font-size: 12px;
+}
+
+.tab-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f38ba8;
+}
+
+/* Editor Actions */
+.editor-actions {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+.run-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.75rem;
+    background: #22c55e;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.run-btn:hover {
+    background: #16a34a;
 }
 
 .file-path {

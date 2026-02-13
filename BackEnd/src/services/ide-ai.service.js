@@ -3,81 +3,201 @@ const OpenAI = require("openai");
 const workspaceService = require('./workspace.service');
 const memoryService = require('./memory.service');
 
+// AI Provider Configuration
+let currentProvider = process.env.AI_PROVIDER || 'openai';
+let currentModel = currentProvider === 'openai'
+    ? (process.env.OPENAI_MODEL || 'gpt-5-nano')
+    : (process.env.OLLAMA_MODEL || 'qwen2.5-coder');
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-5-nano";
+const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
+
+console.log(`[AI Service] Using provider: ${currentProvider}, model: ${currentModel}`);
+
+// Get current provider and model
+function getConfig() {
+    return {
+        provider: currentProvider,
+        model: currentModel,
+        availableProviders: [
+            { id: 'openai', name: 'OpenAI (Cloud)', models: ['gpt-5-nano'] },
+            { id: 'ollama', name: 'Ollama (Local)', models: ['qwen2.5-coder:latest'] }
+        ]
+    };
+}
+
+// Set provider and model
+function setConfig(provider, model) {
+    if (provider) currentProvider = provider;
+    if (model) currentModel = model;
+    console.log(`[AI Service] Switched to provider: ${currentProvider}, model: ${currentModel}`);
+    return getConfig();
+}
+
+// Call AI based on current provider
+async function callAI(messages, options = {}) {
+    const { temperature = 0.7, maxTokens = 8192 } = options;
+
+    if (currentProvider === 'ollama') {
+        return callOllama(messages, temperature, maxTokens);
+    } else {
+        return callOpenAI(messages, temperature, maxTokens);
+    }
+}
+
+// OpenAI API call
+async function callOpenAI(messages, temperature, maxTokens) {
+    // GPT-5 Nano has lower token limits - cap at 4096
+    const cappedTokens = Math.min(maxTokens, 4096);
+
+    const params = {
+        model: currentModel,
+        messages
+    };
+
+    // GPT-5 models use max_completion_tokens and don't support temperature
+    if (currentModel.startsWith('gpt-5')) {
+        params.max_completion_tokens = cappedTokens;
+    } else {
+        params.max_tokens = cappedTokens;
+        params.temperature = temperature;
+    }
+
+    try {
+        console.log(`[AI] Calling OpenAI with model: ${currentModel}`);
+        const completion = await openai.chat.completions.create(params);
+        return completion.choices[0].message.content;
+    } catch (error) {
+        console.error('[AI] OpenAI API error:', error.message);
+        throw error;
+    }
+}
+
+// Ollama API call - optimized for speed with timeout
+async function callOllama(messages, temperature, maxTokens) {
+    // Use smaller token count for faster response
+    const optimizedTokens = Math.min(maxTokens, 1024);
+
+    try {
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+        const response = await fetch(`${ollamaHost}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+                model: currentModel,
+                messages,
+                stream: false,
+                options: {
+                    temperature: 0.2,
+                    num_predict: optimizedTokens,
+                    num_ctx: 2048,
+                    repeat_penalty: 1.05,
+                    top_k: 20,
+                    top_p: 0.8
+                }
+            })
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Ollama error (${response.status}): ${errorText || response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('[AI] Ollama response received successfully');
+        return data.message.content;
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Ollama request timed out. Make sure Ollama is running and the model is loaded.');
+        }
+        console.error('[AI] Ollama error:', error.message);
+        throw new Error(`Ollama connection failed: ${error.message}. Is Ollama running on ${ollamaHost}?`);
+    }
+}
 
 // Advanced Cursor-like system prompt
-const getIDESystemPrompt = (context) => `You are an expert AI coding assistant integrated into a modern IDE. You have deep understanding of software development, debugging, and code optimization.
+const getIDESystemPrompt = (context) => `You are an AI coding assistant integrated into an IDE. You can see the user's actual project files.
 
-## Your Capabilities
-- **Code Generation**: Create complete, production-ready code from descriptions
-- **Debugging**: Analyze errors, identify root causes, propose fixes
-- **Optimization**: Improve performance, readability, and maintainability
-- **Explanation**: Break down complex code into understandable pieces
-- **Refactoring**: Restructure code while preserving functionality
+## YOUR CURRENT PROJECT
+${context ? `The user has opened a project. Here are the actual files in their workspace:
 
-## Context Awareness
-You have access to the user's codebase:
-${context || 'No codebase loaded yet.'}
+${context}
 
-## Response Format
+IMPORTANT: When the user asks about "this project", "the code", "explain this", etc., you MUST analyze the ACTUAL FILES shown above. Reference specific file names, functions, classes, and code from the context.` : 'No project loaded yet - workspace is empty.'}
 
-When generating or modifying code, use this format:
-\`\`\`[language]
-// filepath: /path/to/file.ext
-[code content]
+## CREATING/MODIFYING FILES
+When creating or modifying files, use this format:
+
+\`\`\`python
+# filepath: filename.py
+code here...
 \`\`\`
 
-When creating multiple files, output each with its filepath comment.
+\`\`\`javascript
+// filepath: filename.js
+code here...
+\`\`\`
 
-## Key Principles
-1. **Be precise**: Give exact code, not pseudocode
-2. **Be complete**: Include all necessary imports and dependencies
-3. **Be contextual**: Reference existing code patterns in the codebase
-4. **Be proactive**: Anticipate related changes needed
-5. **Be safe**: Never suggest code that could cause data loss without warning
+RULES:
+1. Wrap code in triple backticks with language
+2. First line: # filepath: filename.ext (Python) or // filepath: filename.ext (JS)
+3. Use simple filenames (no leading slashes)
 
-## Error Handling
-When debugging:
-1. Identify the exact error location
-2. Explain WHY the error occurs
-3. Provide the FIXED code
-4. Explain the fix
-
-## Project Generation
-When creating new projects:
-1. First create folder structure
-2. Create config files (package.json, etc.)
-3. Create documentation (README.md)
-4. Create source files
-5. Provide setup instructions`;
+## GUIDELINES
+- When asked to explain the project: Describe what the actual code does based on the files above
+- When asked to improve/fix: Reference specific files and line numbers
+- Be concise and practical
+- Reference actual file names from the context`;
 
 // Chat with codebase context
 async function chat(message, workspacePath) {
-    const context = workspacePath
-        ? await workspaceService.buildCodebaseContext(workspacePath)
-        : '';
+    console.log(`[Chat] Starting with workspace: ${workspacePath || 'none'}`);
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: getIDESystemPrompt(context) },
+    try {
+        const context = workspacePath
+            ? await workspaceService.buildCodebaseContext(workspacePath)
+            : '';
+
+        console.log(`[Chat] Context length: ${context.length} chars`);
+
+        const systemPrompt = getIDESystemPrompt(context);
+        console.log(`[Chat] System prompt length: ${systemPrompt.length} chars`);
+
+        const response = await callAI([
+            { role: "system", content: systemPrompt },
             { role: "user", content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 8192
-    });
+        ]);
 
-    const response = completion.choices[0].message.content;
+        console.log(`[Chat] Got response: ${response?.substring(0, 100)}...`);
 
-    if (workspacePath) {
-        await memoryService.logAction(workspacePath, 'chat', message, response);
+        if (workspacePath) {
+            try {
+                await memoryService.logAction(workspacePath, 'chat', message, response);
+            } catch (e) {
+                console.log('[Chat] Memory log failed (non-critical)');
+            }
+        }
+
+        // Parse files from chat responses
+        const files = parseFilesFromResponse(response || '');
+
+        return { response: response || 'No response received from AI.', files };
+    } catch (error) {
+        console.error('[Chat] Error:', error.message);
+        return {
+            response: `Error: ${error.message}. Please check your API key and try again.`,
+            files: []
+        };
     }
-
-    return response;
 }
 
 // Generate a complete project from description
@@ -87,8 +207,8 @@ async function generateProject(description, workspacePath) {
 "${description}"
 
 Generate all necessary files including:
-1. Project configuration (package.json if Node.js, requirements.txt if Python, etc.)
-2. README.md with setup instructions
+1. Project configuration(package.json if Node.js, requirements.txt if Python, etc.)
+    2. README.md with setup instructions
 3. Source code files with proper structure
 4. Basic tests if applicable
 
@@ -100,17 +220,11 @@ For each file, use this exact format:
 
 Create a well-organized folder structure. Be thorough and create production-ready code.`;
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: getIDESystemPrompt('') },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 16384
-    });
+    const response = await callAI([
+        { role: "system", content: getIDESystemPrompt('') },
+        { role: "user", content: prompt }
+    ], { maxTokens: 16384 });
 
-    const response = completion.choices[0].message.content;
     const files = parseFilesFromResponse(response);
 
     if (workspacePath) {
@@ -157,17 +271,11 @@ Use the filepath format for any code fixes:
 [corrected code]
 \`\`\``;
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: getIDESystemPrompt(context) },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.5,
-        max_tokens: 8192
-    });
+    const response = await callAI([
+        { role: "system", content: getIDESystemPrompt(context) },
+        { role: "user", content: prompt }
+    ], { temperature: 0.5 });
 
-    const response = completion.choices[0].message.content;
     const files = parseFilesFromResponse(response);
 
     if (workspacePath) {
@@ -207,17 +315,11 @@ Use the filepath format:
 [complete updated code]
 \`\`\``;
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: getIDESystemPrompt(context) },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.5,
-        max_tokens: 8192
-    });
+    const response = await callAI([
+        { role: "system", content: getIDESystemPrompt(context) },
+        { role: "user", content: prompt }
+    ], { temperature: 0.5 });
 
-    const response = completion.choices[0].message.content;
     const files = parseFilesFromResponse(response);
 
     if (workspacePath) {
@@ -229,10 +331,6 @@ Use the filepath format:
 
 // Inline code suggestions
 async function getSuggestion(prefix, suffix, filePath, workspacePath) {
-    const context = workspacePath
-        ? await workspaceService.buildCodebaseContext(workspacePath)
-        : '';
-
     const prompt = `Complete this code. Only output the completion, nothing else.
 
 File: ${filePath}
@@ -248,26 +346,22 @@ ${suffix}
 
 Provide ONLY the code that should be inserted at the cursor position. No explanations.`;
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: "You are a code completion engine. Output ONLY the code to insert. No markdown, no explanations." },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.2,
-        max_tokens: 256
-    });
+    const response = await callAI([
+        { role: "system", content: "You are a code completion engine. Output ONLY the code to insert. No markdown, no explanations." },
+        { role: "user", content: prompt }
+    ], { temperature: 0.2, maxTokens: 256 });
 
-    return completion.choices[0].message.content.trim();
+    return response.trim();
 }
 
 // Explain code
 async function explainCode(code, workspacePath) {
-    const context = workspacePath
-        ? await workspaceService.buildCodebaseContext(workspacePath)
-        : '';
+    try {
+        const context = workspacePath
+            ? await workspaceService.buildCodebaseContext(workspacePath)
+            : '';
 
-    const prompt = `Explain this code in detail:
+        const prompt = `Explain this code in detail:
 
 \`\`\`
 ${code}
@@ -279,17 +373,16 @@ Provide:
 3. Key concepts used
 4. Potential improvements`;
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
+        const response = await callAI([
             { role: "system", content: getIDESystemPrompt(context) },
             { role: "user", content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 4096
-    });
+        ], { maxTokens: 4096 });
 
-    return completion.choices[0].message.content;
+        return response;
+    } catch (error) {
+        console.error('[explainCode] Error:', error.message);
+        return `Error explaining code: ${error.message}`;
+    }
 }
 
 // Optimize code
@@ -308,17 +401,11 @@ Use the filepath format:
 [optimized code]
 \`\`\``;
 
-    const completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: getIDESystemPrompt('') },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.5,
-        max_tokens: 8192
-    });
+    const response = await callAI([
+        { role: "system", content: getIDESystemPrompt('') },
+        { role: "user", content: prompt }
+    ], { temperature: 0.5 });
 
-    const response = completion.choices[0].message.content;
     const files = parseFilesFromResponse(response);
 
     if (workspacePath) {
@@ -328,17 +415,53 @@ Use the filepath format:
     return { response, files };
 }
 
-// Parse files from AI response
+// Parse files from AI response - improved to handle multiple formats
 function parseFilesFromResponse(response) {
     const files = [];
-    const codeBlockRegex = /```[\w]*\n\/\/ filepath: (.+)\n([\s\S]*?)```/g;
+
+    // Match multiple filepath formats:
+    // 1. // filepath: path
+    // 2. # filepath: path  
+    // 3. filepath: path
+    // 4. File: path
+    const patterns = [
+        /```[\w]*\n(?:\/\/|#)?\s*filepath:\s*(.+?)\n([\s\S]*?)```/gi,
+        /```[\w]*\n(?:\/\/|#)?\s*file:\s*(.+?)\n([\s\S]*?)```/gi,
+        /```(\w+)\n([\s\S]*?)```/g  // Fallback: just code blocks
+    ];
 
     let match;
-    while ((match = codeBlockRegex.exec(response)) !== null) {
-        files.push({
-            path: match[1].trim(),
-            content: match[2].trim()
-        });
+    const foundPaths = new Set();
+
+    // Try first two patterns (with explicit filepath)
+    for (let i = 0; i < 2; i++) {
+        while ((match = patterns[i].exec(response)) !== null) {
+            const path = match[1].trim();
+            if (!foundPaths.has(path)) {
+                foundPaths.add(path);
+                files.push({
+                    path: path,
+                    content: match[2].trim()
+                });
+            }
+        }
+    }
+
+    // If no explicit filepaths found, try to infer from code blocks
+    if (files.length === 0) {
+        const codeBlockMatch = /```(\w+)\n([\s\S]*?)```/g;
+        let counter = 0;
+        while ((match = codeBlockMatch.exec(response)) !== null) {
+            const lang = match[1].toLowerCase();
+            const content = match[2].trim();
+
+            // Skip if it's just a small snippet or explanation
+            if (content.length > 50 && content.includes('\n')) {
+                const ext = { python: 'py', javascript: 'js', typescript: 'ts', java: 'java', html: 'html', css: 'css' }[lang] || lang;
+                const filename = `generated_${counter++}.${ext}`;
+                files.push({ path: filename, content });
+            }
+        }
     }
 
     return files;
@@ -346,21 +469,33 @@ function parseFilesFromResponse(response) {
 
 // Apply generated files to workspace
 async function applyFiles(files, workspacePath) {
+    console.log(`[ApplyFiles] Starting to apply ${files.length} files to workspace: ${workspacePath}`);
+
     const results = [];
     for (const file of files) {
+        console.log(`[ApplyFiles] Writing file: ${file.path}`);
         try {
             await workspaceService.writeFile(file.path, file.content);
             results.push({ path: file.path, success: true });
+            console.log(`[ApplyFiles] ✓ Successfully wrote: ${file.path}`);
         } catch (error) {
+            console.error(`[ApplyFiles] ✗ Failed to write ${file.path}:`, error.message);
             results.push({ path: file.path, success: false, error: error.message });
         }
     }
 
-    await memoryService.logAction(workspacePath, 'apply', `Applied ${files.length} files`, JSON.stringify(results));
+    try {
+        await memoryService.logAction(workspacePath, 'apply', `Applied ${files.length} files`, JSON.stringify(results));
+    } catch (e) {
+        console.log('[ApplyFiles] Memory log failed (non-critical)');
+    }
+
     return results;
 }
 
 module.exports = {
+    getConfig,
+    setConfig,
     chat,
     generateProject,
     debugError,

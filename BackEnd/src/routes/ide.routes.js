@@ -6,6 +6,37 @@ const memoryService = require('../services/memory.service');
 const terminalService = require('../services/terminal.service');
 const gitService = require('../services/git.service');
 
+// ============ AI CONFIG ROUTES ============
+
+/**
+ * GET /ide/config
+ * Get current AI provider and model configuration
+ */
+router.get('/config', (req, res) => {
+    try {
+        const config = ideAIService.getConfig();
+        res.json(config);
+    } catch (error) {
+        console.error('[IDE] Config error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /ide/config
+ * Set AI provider and model
+ */
+router.post('/config', (req, res) => {
+    try {
+        const { provider, model } = req.body;
+        const config = ideAIService.setConfig(provider, model);
+        res.json(config);
+    } catch (error) {
+        console.error('[IDE] Config set error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 /**
  * POST /ide/workspace/open
  * Set the current workspace directory
@@ -59,16 +90,22 @@ router.get('/workspace/files', async (req, res) => {
 router.get('/file', async (req, res) => {
     try {
         const { path } = req.query;
+        const workspace = workspaceService.getWorkspace();
+
+        if (!workspace) {
+            return res.status(400).json({ error: 'No workspace selected. Please open a folder first.' });
+        }
 
         if (!path) {
             return res.status(400).json({ error: 'Path is required' });
         }
 
+        console.log(`[IDE] Reading file: ${path}`);
         const content = await workspaceService.readFile(path);
         res.json({ path, content });
     } catch (error) {
-        console.error('[IDE] File read error:', error);
-        res.status(500).json({ error: error.message });
+        console.error('[IDE] File read error:', error.message);
+        res.status(500).json({ error: `Failed to read file: ${error.message}` });
     }
 });
 
@@ -126,7 +163,11 @@ router.post('/chat', async (req, res) => {
         }
 
         const result = await ideAIService.chat(message, workspace);
-        res.json({ response: result });
+        // Result is now { response, files }
+        res.json({
+            response: result.response,
+            files: result.files || []
+        });
     } catch (error) {
         console.error('[IDE] Chat error:', error);
         res.status(500).json({ error: error.message });
@@ -232,6 +273,69 @@ router.get('/history', async (req, res) => {
     }
 });
 
+/**
+ * POST /ide/run-code
+ * Run code snippet directly (saves to temp file and executes)
+ */
+router.post('/run-code', async (req, res) => {
+    try {
+        const { code, language = 'javascript' } = req.body;
+
+        if (!code) {
+            return res.status(400).json({ error: 'Code is required' });
+        }
+
+        const os = require('os');
+        const path = require('path');
+        const fs = require('fs').promises;
+
+        // Determine file extension and command
+        let ext, command;
+        switch (language.toLowerCase()) {
+            case 'python':
+            case 'py':
+                ext = '.py';
+                break;
+            case 'javascript':
+            case 'js':
+            default:
+                ext = '.js';
+                break;
+        }
+
+        // Create temp file
+        const tempDir = os.tmpdir();
+        const tempFile = path.join(tempDir, `code_review_temp${ext}`);
+        await fs.writeFile(tempFile, code, 'utf-8');
+
+        // Determine command
+        if (ext === '.py') {
+            command = `python "${tempFile}"`;
+        } else {
+            command = `node "${tempFile}"`;
+        }
+
+        console.log(`[IDE] Running code: ${command}`);
+
+        // Execute
+        const result = await terminalService.executeCommand(command, tempDir);
+
+        // Clean up temp file
+        try {
+            await fs.unlink(tempFile);
+        } catch (e) { /* ignore cleanup errors */ }
+
+        res.json({
+            output: result.output || 'No output',
+            success: result.success,
+            exitCode: result.exitCode
+        });
+    } catch (error) {
+        console.error('[IDE] Run code error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ TERMINAL ROUTES ============
 
 /**
@@ -243,15 +347,21 @@ router.post('/terminal/exec', async (req, res) => {
         const { command } = req.body;
         const workspace = workspaceService.getWorkspace();
 
+        if (!workspace) {
+            return res.status(400).json({ error: 'No workspace selected. Please open a folder first.' });
+        }
+
         if (!command) {
             return res.status(400).json({ error: 'Command is required' });
         }
 
+        console.log(`[IDE] Executing command in ${workspace}: ${command}`);
         const result = await terminalService.executeCommand(command, workspace);
+        console.log(`[IDE] Command completed with exit code: ${result.exitCode}`);
         res.json(result);
     } catch (error) {
-        console.error('[IDE] Terminal error:', error);
-        res.status(500).json({ error: error.message });
+        console.error('[IDE] Terminal error:', error.message);
+        res.status(500).json({ error: `Command failed: ${error.message}` });
     }
 });
 

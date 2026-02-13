@@ -1,7 +1,8 @@
 import Editor from '@monaco-editor/react'
+import { FiX, FiPlay } from 'react-icons/fi'
 import './CodeEditor.css'
 
-function CodeEditor({ filePath, content, onChange, language = 'javascript' }) {
+function CodeEditor({ filePath, content, onChange, onClose, onRun, openFiles = [], onSwitchFile, onCloseFile }) {
 
     const getLanguage = (path) => {
         if (!path) return 'plaintext'
@@ -16,12 +17,61 @@ function CodeEditor({ filePath, content, onChange, language = 'javascript' }) {
         return langMap[ext] || 'plaintext'
     }
 
+    const getFileName = (path) => {
+        if (!path) return ''
+        return path.split(/[/\\]/).pop()
+    }
+
+    const isRunnable = (path) => {
+        if (!path) return false
+        const ext = path.split('.').pop()?.toLowerCase()
+        return ['py', 'js', 'ts'].includes(ext)
+    }
+
     return (
         <div className="code-editor">
             {filePath ? (
                 <>
                     <div className="editor-header">
-                        <span className="file-path">{filePath}</span>
+                        <div className="file-tabs">
+                            {openFiles.length > 0 ? (
+                                openFiles.map((file, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`file-tab ${file === filePath ? 'active' : ''}`}
+                                        onClick={() => onSwitchFile && onSwitchFile(file)}
+                                    >
+                                        <span className="tab-name">{getFileName(file)}</span>
+                                        <button
+                                            className="tab-close"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                onCloseFile && onCloseFile(file)
+                                            }}
+                                        >
+                                            <FiX />
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="file-tab active">
+                                    <span className="tab-name">{getFileName(filePath)}</span>
+                                    <button
+                                        className="tab-close"
+                                        onClick={() => onClose && onClose()}
+                                    >
+                                        <FiX />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="editor-actions">
+                            {isRunnable(filePath) && onRun && (
+                                <button className="run-btn" onClick={onRun} title="Run file">
+                                    <FiPlay /> Run
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <Editor
                         height="calc(100% - 40px)"

@@ -83,10 +83,15 @@ main .left {
   background-color: #0c0c0c;
 }
 
-main .left .review {
+main .left .button-group {
   position: absolute;
   bottom: 1rem;
   right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+main .left .review {
   background-color: rgb(219, 219, 255);
   color: #000000;
   padding: 0.5rem 2rem;
@@ -96,10 +101,270 @@ main .left .review {
   border-radius: 0.7rem;
 }
 
+main .left .review:hover {
+  background-color: rgb(180, 180, 255);
+}
+
+main .left .review.run-btn {
+  background-color: #10b981;
+  color: white;
+}
+
+main .left .review.run-btn:hover {
+  background-color: #059669;
+}
+
+main .left .review.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.terminal-output {
+  position: absolute;
+  bottom: 4rem;
+  left: 1rem;
+  right: 1rem;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.terminal-output .terminal-header {
+  background: #16213e;
+  padding: 0.5rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  border-bottom: 1px solid #333;
+}
+
+.terminal-output pre {
+  margin: 0;
+  padding: 0.5rem;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 
 main .right {
-  background-color: #343434;
-  padding: 1rem 2rem;
-  font-size: 1.5rem;
+  background-color: #1e1e2e;
+  padding: 1.5rem 2rem;
+  font-size: 0.95rem;
   overflow: auto;
+  color: #cdd6f4;
+  line-height: 1.6;
+}
+
+/* Code Review Markdown Styling */
+main .right h1 {
+  font-size: 1.4rem;
+  color: #cba6f7;
+  margin: 1.5rem 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #313244;
+}
+
+main .right h2 {
+  font-size: 1.2rem;
+  color: #89b4fa;
+  margin: 1.25rem 0 0.6rem 0;
+}
+
+main .right h3 {
+  font-size: 1.05rem;
+  color: #94e2d5;
+  margin: 1rem 0 0.5rem 0;
+}
+
+main .right h4,
+main .right h5,
+main .right h6 {
+  font-size: 1rem;
+  color: #a6e3a1;
+  margin: 0.75rem 0 0.4rem 0;
+}
+
+main .right p {
+  margin: 0.6rem 0;
+}
+
+main .right strong {
+  color: #f9e2af;
+  font-weight: 600;
+}
+
+main .right em {
+  color: #f5c2e7;
+}
+
+main .right ul,
+main .right ol {
+  margin: 0.6rem 0;
+  padding-left: 1.5rem;
+}
+
+main .right li {
+  margin: 0.3rem 0;
+  color: #bac2de;
+}
+
+main .right li::marker {
+  color: #7c3aed;
+}
+
+main .right code:not(pre code) {
+  background: #313244;
+  color: #f38ba8;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85rem;
+}
+
+main .right pre {
+  background: #11111b;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  border: 1px solid #313244;
+}
+
+main .right pre code {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #cdd6f4;
+  background: transparent;
+  padding: 0;
+}
+
+main .right blockquote {
+  border-left: 3px solid #7c3aed;
+  margin: 0.75rem 0;
+  padding: 0.5rem 0 0.5rem 1rem;
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 0 6px 6px 0;
+  color: #a6adc8;
+}
+
+main .right hr {
+  border: none;
+  height: 1px;
+  background: #313244;
+  margin: 1rem 0;
+}
+
+main .right a {
+  color: #89b4fa;
+  text-decoration: none;
+}
+
+main .right a:hover {
+  text-decoration: underline;
+}
+
+/* Code Review Header */
+.code-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-bottom: 1px solid #313244;
+}
+
+.code-review-header h1 {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Model Selector (Shared) */
+.model-selector-wrapper {
+  position: relative;
+}
+
+.model-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid #7c3aed;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.model-selector-btn:hover {
+  background: rgba(124, 58, 237, 0.4);
+}
+
+.model-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: #1e1e2e;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #6c7086;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  font-weight: 600;
+}
+
+.provider-group {
+  border-bottom: 1px solid #313244;
+}
+
+.provider-group:last-child {
+  border-bottom: none;
+}
+
+.provider-name {
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.model-option {
+  padding: 0.6rem 1rem 0.6rem 1.5rem;
+  color: #cdd6f4;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 0.85rem;
+}
+
+.model-option:hover {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+.model-option.selected {
+  background: #7c3aed;
+  color: #fff;
+}
+
+/* Loading state */
+.review.loading {
+  opacity: 0.6;
+  cursor: wait;
 }

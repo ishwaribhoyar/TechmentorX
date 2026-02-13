@@ -1,64 +1,126 @@
 require('dotenv').config();
 const OpenAI = require("openai");
 
-// AI Provider Configuration
-const AI_PROVIDER = process.env.AI_PROVIDER || 'openai';
+// Import the shared config from ide-ai.service
+const ideAIService = require('./ide-ai.service');
 
-// OpenAI Setup (Primary - GPT-5-nano)
+// OpenAI Setup
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
+const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
+
 function getSystemPrompt() {
-    return `AI System Instruction: Senior Code Reviewer (7+ Years of Experience)
+    return `You are a senior code reviewer. Be CONCISE and PRACTICAL.
 
-Role & Responsibilities:
+OUTPUT FORMAT (use exactly this structure):
 
-You are an expert code reviewer with 7+ years of development experience. Your role is to analyze, review, and improve code written by developers. You focus on:
-• Code Quality: Ensuring clean, maintainable, and well-structured code.
-• Best Practices: Suggesting industry-standard coding practices.
-• Efficiency & Performance: Identifying areas to optimize execution time and resource usage.
-• Error Detection: Spotting potential bugs, security risks, and logical flaws.
-• Scalability: Advising on how to make code adaptable for future growth.
-• Readability & Maintainability: Ensuring that the code is easy to understand and modify.
+## 🔍 Quick Summary
+One sentence describing what the code does.
 
-Guidelines for Review:
-1. Provide Constructive Feedback: Be detailed yet concise, explaining why changes are needed.
-2. Suggest Code Improvements: Offer refactored versions or alternative approaches when possible.
-3. Detect & Fix Performance Bottlenecks: Identify redundant operations or costly computations.
-4. Ensure Security Compliance: Look for common vulnerabilities (e.g., SQL injection, XSS, CSRF).
-5. Promote Consistency: Ensure uniform formatting, naming conventions, and style guide adherence.
-6. Follow DRY (Don't Repeat Yourself) & SOLID Principles: Reduce code duplication and maintain modular design.
-7. Identify Unnecessary Complexity: Recommend simplifications when needed.
-8. Verify Test Coverage: Check if proper unit/integration tests exist and suggest improvements.
-9. Ensure Proper Documentation: Advise on adding meaningful comments and docstrings.
-10. Encourage Modern Practices: Suggest the latest frameworks, libraries, or patterns when beneficial.
+## ⚠️ Issues Found
+- **Issue 1**: Brief description → **Fix**: How to fix it
+- **Issue 2**: Brief description → **Fix**: How to fix it
+(List only actual problems, max 5)
 
-Tone & Approach:
-• Be precise, to the point, and avoid unnecessary fluff.
-• Provide real-world examples when explaining concepts.
-• Assume that the developer is competent but always offer room for improvement.
-• Balance strictness with encouragement: highlight strengths while pointing out weaknesses.`;
+## ✅ Fixed Code
+\`\`\`[language]
+// Complete fixed and optimized code here
+\`\`\`
+
+## 💡 Quick Tips
+- Tip 1
+- Tip 2
+(Max 3 practical tips)
+
+RULES:
+- Be brief, not verbose
+- ALWAYS provide the complete fixed code
+- Use simple language
+- Skip obvious/minor issues
+- Focus on real bugs and improvements`;
 }
 
-// Generate content using OpenAI GPT-5-nano
-async function generateContent(prompt) {
-    console.log(`[AI Service] Using provider: ${AI_PROVIDER}`);
-
+// Call Ollama API - optimized for speed
+async function callOllama(model, messages) {
     try {
-        const completion = await openai.chat.completions.create({
-            model: process.env.OPENAI_MODEL || "gpt-5-nano",
-            messages: [
-                { role: "system", content: getSystemPrompt() },
-                { role: "user", content: prompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 4096
+        // Add timeout using AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+        const response = await fetch(`${ollamaHost}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+                model,
+                messages,
+                stream: false,
+                options: {
+                    temperature: 0.3,
+                    num_predict: 2048,
+                    num_ctx: 4096,
+                    repeat_penalty: 1.1
+                }
+            })
         });
 
-        const response = completion.choices[0].message.content;
-        console.log(`[AI Service] Response generated successfully`);
-        return response;
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => response.statusText);
+            throw new Error(`Ollama error (${response.status}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        return data.message.content;
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Ollama request timed out. Is the model loaded?');
+        }
+        if (error.message.includes('ECONNREFUSED')) {
+            throw new Error('Cannot connect to Ollama. Run: ollama serve');
+        }
+        throw new Error(`Ollama failed: ${error.message}`);
+    }
+}
+
+// Generate content using dynamically selected model
+async function generateContent(prompt) {
+    // Get current config from the shared service
+    const config = ideAIService.getConfig();
+    console.log(`[AI Service] Using provider: ${config.provider}, model: ${config.model}`);
+
+    try {
+        const messages = [
+            { role: "system", content: getSystemPrompt() },
+            { role: "user", content: prompt }
+        ];
+
+        if (config.provider === 'ollama') {
+            // Use Ollama
+            return await callOllama(config.model, messages);
+        } else {
+            // Use OpenAI
+            const params = {
+                model: config.model,
+                messages
+            };
+
+            // GPT-5 models use max_completion_tokens and don't support temperature
+            if (config.model.startsWith('gpt-5')) {
+                params.max_completion_tokens = 4096;
+            } else {
+                params.max_tokens = 4096;
+                params.temperature = 0.7;
+            }
+
+            const completion = await openai.chat.completions.create(params);
+            const response = completion.choices[0].message.content;
+            console.log(`[AI Service] Response generated successfully`);
+            return response;
+        }
 
     } catch (error) {
         console.error(`[AI Service] Error:`, error.message);

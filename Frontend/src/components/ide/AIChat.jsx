@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
-import { FiSend, FiCode, FiBug, FiZap, FiCheck, FiX } from 'react-icons/fi'
+import { FiSend, FiCode, FiAlertCircle, FiZap, FiCheck, FiX } from 'react-icons/fi'
 import './AIChat.css'
 
 function AIChat({ onSendMessage, messages, pendingFiles, onApplyFiles, onRejectFiles, isLoading }) {
@@ -28,7 +28,7 @@ function AIChat({ onSendMessage, messages, pendingFiles, onApplyFiles, onRejectF
 
     const quickActions = [
         { icon: <FiCode />, label: 'Explain', prompt: 'Explain this project to me' },
-        { icon: <FiBug />, label: 'Debug', prompt: 'Help me debug this code' },
+        { icon: <FiAlertCircle />, label: 'Debug', prompt: 'Help me debug this code' },
         { icon: <FiZap />, label: 'Optimize', prompt: 'Optimize and improve this code' }
     ]
 

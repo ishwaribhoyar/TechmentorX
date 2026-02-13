@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { FiTerminal, FiGitBranch, FiPlus, FiFile } from 'react-icons/fi'
+import { FiTerminal, FiGitBranch, FiPlus, FiFile, FiSettings } from 'react-icons/fi'
 import WorkspaceSelector from '../components/ide/WorkspaceSelector'
 import FileTree from '../components/ide/FileTree'
 import CodeEditor from '../components/ide/CodeEditor'
@@ -18,6 +18,7 @@ function IDEPage() {
     const [isLoadingFiles, setIsLoadingFiles] = useState(false)
     const [currentFile, setCurrentFile] = useState(null)
     const [fileContent, setFileContent] = useState('')
+    const [openFiles, setOpenFiles] = useState([]) // Track all open files for tabs
     const [messages, setMessages] = useState([])
     const [pendingFiles, setPendingFiles] = useState([])
     const [isAILoading, setIsAILoading] = useState(false)
@@ -28,6 +29,33 @@ function IDEPage() {
     const [showNewFileModal, setShowNewFileModal] = useState(false)
     const [newFileName, setNewFileName] = useState('')
 
+    // Model selector state
+    const [aiConfig, setAiConfig] = useState({ provider: 'openai', model: 'gpt-5-nano', availableProviders: [] })
+    const [showModelSelector, setShowModelSelector] = useState(false)
+
+    // Fetch AI config on mount
+    useEffect(() => {
+        fetchAIConfig()
+    }, [])
+
+    const fetchAIConfig = async () => {
+        try {
+            const response = await axios.get(`${API_BASE}/config`)
+            setAiConfig(response.data)
+        } catch (error) {
+            console.error('Failed to fetch AI config:', error)
+        }
+    }
+
+    const handleModelChange = async (provider, model) => {
+        try {
+            const response = await axios.post(`${API_BASE}/config`, { provider, model })
+            setAiConfig(response.data)
+            setShowModelSelector(false)
+        } catch (error) {
+            console.error('Failed to set AI config:', error)
+        }
+    }
     // Open workspace
     const handleWorkspaceSelected = async (path) => {
         try {
@@ -59,8 +87,81 @@ function IDEPage() {
             const response = await axios.get(`${API_BASE}/file`, { params: { path: filePath } })
             setCurrentFile(filePath)
             setFileContent(response.data.content)
+
+            // Add to open files if not already open
+            setOpenFiles(prev => {
+                if (!prev.includes(filePath)) {
+                    return [...prev, filePath]
+                }
+                return prev
+            })
         } catch (error) {
             console.error('Failed to load file:', error)
+        }
+    }
+
+    // Close a file tab
+    const handleCloseFile = (filePath) => {
+        setOpenFiles(prev => prev.filter(f => f !== filePath))
+
+        // If closing current file, switch to another open file or clear
+        if (filePath === currentFile) {
+            const remaining = openFiles.filter(f => f !== filePath)
+            if (remaining.length > 0) {
+                handleFileSelect(remaining[remaining.length - 1])
+            } else {
+                setCurrentFile(null)
+                setFileContent('')
+            }
+        }
+    }
+
+    // Run current file in terminal
+    const handleRunFile = async () => {
+        if (!currentFile) return
+
+        if (!workspace) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: '❌ Please select a workspace folder first before running files.'
+            }])
+            return
+        }
+
+        setShowTerminal(true)
+
+        const ext = currentFile.split('.').pop()?.toLowerCase()
+        let command = ''
+
+        if (ext === 'py') {
+            command = `python "${currentFile}"`
+        } else if (ext === 'js') {
+            command = `node "${currentFile}"`
+        } else if (ext === 'ts') {
+            command = `npx ts-node "${currentFile}"`
+        } else {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `❌ Cannot run .${ext} files directly. Supported: .py, .js, .ts`
+            }])
+            return
+        }
+
+        try {
+            const response = await axios.post(`${API_BASE}/terminal/exec`, { command })
+            const output = response.data.output || 'No output'
+            const status = response.data.success ? '✅' : '❌'
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `${status} **Running ${currentFile}:**\n\`\`\`\n${output}\n\`\`\``
+            }])
+        } catch (error) {
+            const errMsg = error.response?.data?.error || error.message
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `❌ **Failed to run file:** ${errMsg}`
+            }])
+            console.error('Failed to run file:', error)
         }
     }
 
@@ -109,13 +210,12 @@ function IDEPage() {
                     error: message,
                     file: currentFile
                 })
-            } else if (message.toLowerCase().includes('explain')) {
-                const code = fileContent || message
-                const explainRes = await axios.post(`${API_BASE}/explain`, { code })
-                response = { data: { response: explainRes.data.explanation } }
-            } else if (message.toLowerCase().includes('optimize')) {
-                const code = fileContent || message
-                response = await axios.post(`${API_BASE}/optimize`, { code, file: currentFile })
+            } else if (message.toLowerCase().includes('explain') && fileContent) {
+                // Only use /explain if we have actual file content
+                const explainRes = await axios.post(`${API_BASE}/explain`, { code: fileContent })
+                response = { data: { response: explainRes.data.explanation || 'No explanation received' } }
+            } else if (message.toLowerCase().includes('optimize') && fileContent) {
+                response = await axios.post(`${API_BASE}/optimize`, { code: fileContent, file: currentFile })
             } else if (message.toLowerCase().includes('edit') ||
                 message.toLowerCase().includes('modify') ||
                 message.toLowerCase().includes('refactor')) {
@@ -124,14 +224,34 @@ function IDEPage() {
                     file: currentFile
                 })
             } else {
+                // Use chat for general questions including "explain this project"
                 response = await axios.post(`${API_BASE}/chat`, { message })
             }
 
             setMessages(prev => [...prev, { role: 'assistant', content: response.data.response }])
 
-            // If there are files to apply
+            // AUTO-APPLY files if AI generated any
             if (response.data.files && response.data.files.length > 0) {
-                setPendingFiles(response.data.files)
+                try {
+                    await axios.post(`${API_BASE}/apply`, { files: response.data.files })
+                    loadFiles() // Refresh file tree
+
+                    // Show success message
+                    const fileNames = response.data.files.map(f => f.path).join(', ')
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: `✅ **Files created/updated automatically:**\n${response.data.files.map(f => `- \`${f.path}\``).join('\n')}`
+                    }])
+
+                    // If a single file was created, open it
+                    if (response.data.files.length === 1) {
+                        handleFileSelect(response.data.files[0].path)
+                    }
+                } catch (applyError) {
+                    console.error('Failed to auto-apply files:', applyError)
+                    // Fallback to pending if auto-apply fails
+                    setPendingFiles(response.data.files)
+                }
             }
         } catch (error) {
             console.error('AI error:', error)
@@ -190,6 +310,35 @@ function IDEPage() {
                     <span className="workspace-name">📁 {workspace.split(/[\\/]/).pop()}</span>
                 </div>
                 <div className="toolbar-actions">
+                    {/* Model Selector */}
+                    <div className="model-selector-wrapper">
+                        <button
+                            onClick={() => setShowModelSelector(!showModelSelector)}
+                            title="AI Model"
+                            className={showModelSelector ? 'active' : ''}
+                        >
+                            <FiSettings /> {aiConfig.model}
+                        </button>
+                        {showModelSelector && (
+                            <div className="model-dropdown">
+                                <div className="dropdown-header">Select AI Model</div>
+                                {aiConfig.availableProviders?.map(provider => (
+                                    <div key={provider.id} className="provider-group">
+                                        <div className="provider-name">{provider.name}</div>
+                                        {provider.models.map(model => (
+                                            <div
+                                                key={model}
+                                                className={`model-option ${aiConfig.provider === provider.id && aiConfig.model === model ? 'selected' : ''}`}
+                                                onClick={() => handleModelChange(provider.id, model)}
+                                            >
+                                                {model}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <button onClick={() => setShowNewFileModal(true)} title="New File">
                         <FiPlus /> <FiFile />
                     </button>
@@ -218,6 +367,11 @@ function IDEPage() {
                             filePath={currentFile}
                             content={fileContent}
                             onChange={handleContentChange}
+                            openFiles={openFiles}
+                            onSwitchFile={handleFileSelect}
+                            onCloseFile={handleCloseFile}
+                            onRun={handleRunFile}
+                            onClose={() => handleCloseFile(currentFile)}
                         />
                     </div>
                     {showTerminal && (
